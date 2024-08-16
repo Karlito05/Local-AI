@@ -1,30 +1,99 @@
 "use client"
 
 import { roboto } from "./fonts"
-import { useState, useRef } from "react"
+import { useState, useRef, FormEvent } from "react"
 import ReactMarkdown from "react-markdown"
 import rehypeHighlight from "rehype-highlight"
 import "highlight.js/styles/github-dark.css"
 
-function tryParseJSONObject(jsonString: string) {
-  try {
-    var o = JSON.parse(jsonString)
+interface Message {
+  role: string
+  content: string | null
+}
 
-    // Handle non-exception-throwing cases:
-    // Neither JSON.parse(false) or JSON.parse(1234) throw errors, hence the type-checking,
-    // but... JSON.parse(null) returns null, and typeof null === "object",
-    // so we must check for that, too. Thankfully, null is falsy, so this suffices:
-    if (o && typeof o === "object") {
-      return o
+interface APIResponse {
+  message: {
+    content: string
+  }
+}
+
+function tryParseJSONObject(jsonString: string): APIResponse | false {
+  try {
+    const o = JSON.parse(jsonString)
+    if (
+      o &&
+      typeof o === "object" &&
+      "message" in o &&
+      "content" in o.message
+    ) {
+      return o as APIResponse
     }
   } catch (e) {}
-
   return false
 }
 
 export default function Home() {
-  const [responseText, setResponseText] = useState("")
-  const prevTextRef = useRef("")
+  const [responseText, setResponseText] = useState<string>("")
+  const prevTextRef = useRef<string>("")
+  const formRef = useRef<HTMLFormElement>(null)
+
+  const handleSubmit = async (formData: FormData) => {
+    if (formRef.current) {
+      formRef.current.reset()
+    }
+
+    const message = formData.get("chat-input") as string
+    let pervText = prevTextRef.current
+
+    const body = {
+      model: "mixtral:8x7b",
+      messages: [
+        {
+          role: "user",
+          content: message,
+        },
+      ] as Message[],
+    }
+
+    const response = await fetch("http://localhost:11434/api/chat", {
+      method: "POST",
+      body: JSON.stringify(body),
+    })
+    const reader = response.body?.getReader()
+    if (!reader) {
+      throw new Error("Failed to read response body")
+    }
+
+    let newText = pervText ? pervText + "\n\n" : ""
+    newText += `# User: \n ${message} \n # AI:\n`
+    setResponseText(newText)
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) {
+        prevTextRef.current = newText + "\n"
+        break
+      }
+      const raw_json = new TextDecoder().decode(value)
+      const json = tryParseJSONObject(raw_json)
+
+      if (!json) {
+        let raw_jsons = raw_json.split("\n")
+        raw_jsons.pop()
+
+        for (let raw_json of raw_jsons) {
+          const json = JSON.parse(raw_json) as APIResponse
+          newText += json.message.content
+          setResponseText(newText)
+        }
+      } else {
+        newText += json.message.content
+        setResponseText(newText)
+      }
+    }
+
+    // Reset the form after submission
+  }
 
   return (
     <main className={`${roboto.className} antialiased`}>
@@ -38,58 +107,12 @@ export default function Home() {
         </div>
         <div className='fixed bottom-0 z-50 w-10/12 max-w-3xl bg-transparent pb-10'>
           <form
+            ref={formRef}
             className='flex justify-between items-end w-full bg-gray-900 rounded-2xl py-2.5 px-5 border-none-on-focus'
-            action={async (FormData: FormData) => {
-              "use client"
-              const message = FormData.get("chat-input")
-              let pervText = prevTextRef.current
-
-              const body = {
-                model: "llama3.1",
-                messages: [
-                  {
-                    role: "user",
-                    content: message,
-                  },
-                ],
-              }
-
-              const response = await fetch("http://localhost:11434/api/chat", {
-                method: "POST",
-                body: JSON.stringify(body),
-              })
-              const reader = response.body?.getReader()
-              if (!reader) {
-                throw new Error("Failed to read response body")
-              }
-
-              let newText = pervText ? pervText + "\n\n" : ""
-              newText += `# User: \n ${message} \n # AI:\n`
-              setResponseText(newText)
-
-              while (true) {
-                const { done, value } = await reader.read()
-                if (done) {
-                  prevTextRef.current = newText + "\n"
-                  break
-                }
-                const raw_json = new TextDecoder().decode(value)
-                const json = tryParseJSONObject(raw_json)
-
-                if (!json) {
-                  let raw_jsons = raw_json.split("\n")
-                  raw_jsons.pop()
-
-                  for (let raw_json of raw_jsons) {
-                    const json = JSON.parse(raw_json)
-                    newText += json.message.content
-                    setResponseText(newText)
-                  }
-                } else {
-                  newText += json.message.content
-                  setResponseText(newText)
-                }
-              }
+            onSubmit={(e: FormEvent<HTMLFormElement>) => {
+              e.preventDefault()
+              const formData = new FormData(e.currentTarget)
+              handleSubmit(formData)
             }}
           >
             <input
