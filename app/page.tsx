@@ -46,7 +46,11 @@ export default function Home() {
     let pervText = prevTextRef.current
 
     const body = {
-      model: "mixtral:8x7b",
+
+//==============================
+//     EDIT YOUR MODEL HERE
+      model: "model",
+//==============================
       messages: [
         {
           role: "user",
@@ -91,8 +95,6 @@ export default function Home() {
         setResponseText(newText)
       }
     }
-
-    // Reset the form after submission
   }
 
   return (
