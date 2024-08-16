@@ -2,32 +2,52 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-  }
-}
-
 body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+  background-color: #282c34;
+  animation: colorFade 4s infinite alternate;
+}
+@keyframes colorFade {
+  0% {
+    background-color: #282c34; /* Start color */
+  }
+  100% {
+    background-color: #1c3366; /* Intermediate color */
+  }
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
+button {
+  transition: background-color 0.3s ease, transform 0.3s ease;
+}
+button:hover {
+  background-color: #00eeff; /* Change to green */
+  transform: scale(1.1); /* Slightly increase size */
+}
+
+.min-h-wfa {
+  min-height: -webkit-fill-available;
+}
+
+.border-none-on-focus {
+  border: none;
+  outline: none;
+  /*Removes all outlines*/
+  :focus {
+    outline: 0 !important;
   }
+}
+
+.send-icon {
+  transform: translateX(7.5px);
+  height: 25px;
+  width: 25px;
+}
+
+.mh-80vh {
+  min-height: 80vh;
+}
+
+h1 {
+  font-size: 2.5rem;
+  color: #97d2fd;
+  font-weight: 600;
 }
